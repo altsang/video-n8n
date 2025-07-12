@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: video-n8n-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-n8n}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-n8n_password}
+      POSTGRES_DB: ${POSTGRES_DB:-n8n}
+      POSTGRES_NON_ROOT_USER: ${POSTGRES_NON_ROOT_USER:-n8n}
+      POSTGRES_NON_ROOT_PASSWORD: ${POSTGRES_NON_ROOT_PASSWORD:-n8n}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER:-n8n} -d ${POSTGRES_DB:-n8n}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Redis for Caching and Queue Management
+  redis:
+    image: redis:7-alpine
+    container_name: video-n8n-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_password}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # n8n Workflow Automation
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: video-n8n-n8n
+    restart: unless-stopped
+    environment:
+      # Database Configuration
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-n8n}
+      DB_POSTGRESDB_USER: ${POSTGRES_NON_ROOT_USER:-n8n}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_NON_ROOT_PASSWORD:-n8n}
+      
+      # n8n Configuration
+      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE:-true}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-n8n_admin_password}
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678}
+      
+      # Encryption and Security
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-your_encryption_key_here}
+      N8N_USER_MANAGEMENT_JWT_SECRET: ${N8N_USER_MANAGEMENT_JWT_SECRET:-your_jwt_secret_here}
+      
+      # Execution Configuration
+      EXECUTIONS_PROCESS: main
+      EXECUTIONS_DATA_SAVE_ON_ERROR: all
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
+      EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: true
+      
+      # Custom Node Configuration
+      N8N_CUSTOM_EXTENSIONS: /opt/custom-nodes
+      
+      # API Configuration  
+      N8N_API_ENABLED: true
+      N8N_DISABLE_UI: false
+      
+      # Logging
+      N8N_LOG_LEVEL: ${N8N_LOG_LEVEL:-info}
+      N8N_LOG_OUTPUT: console
+      
+      # File Storage
+      N8N_DEFAULT_BINARY_DATA_MODE: filesystem
+      
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n-workflows:/opt/workflows
+      - ./docker/n8n/custom-nodes:/opt/custom-nodes
+      - ./docker/n8n/backup:/opt/backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget --no-verbose --tries=1 --spider http://localhost:5678/healthz || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Application Server (Future - for custom API endpoints)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video-n8n-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_NON_ROOT_USER:-n8n}:${POSTGRES_NON_ROOT_PASSWORD:-n8n}@postgres:5432/${POSTGRES_DB:-n8n}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_password}@redis:6379
+      
+      # API Keys (will be set via .env file)
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
+      LEONARDO_API_KEY: ${LEONARDO_API_KEY}
+      SOUNDSTRIPE_API_KEY: ${SOUNDSTRIPE_API_KEY}
+      RUNWAY_API_KEY: ${RUNWAY_API_KEY}
+      
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src:/app/src
+      - ./assets:/app/assets
+      - app_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles:
+      - app  # Only start with: docker-compose --profile app up
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  n8n_data:
+    driver: local
+  app_logs:
+    driver: local
+
+networks:
+  default:
+    name: video-n8n-network
