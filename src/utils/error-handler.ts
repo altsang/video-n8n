@@ -153,7 +153,11 @@ export function errorHandler(error: Error, req: Request, res: Response, next: Ne
   }
 
   // Send error response
-  const errorResponse = createErrorResponse(error, statusCode, Array.isArray(requestId) ? requestId[0] : requestId);
+  const errorResponse = createErrorResponse(
+    error,
+    statusCode,
+    Array.isArray(requestId) ? requestId[0] : requestId
+  );
   res.status(statusCode).json(errorResponse);
 }
 
