@@ -62,7 +62,8 @@ RUN apk add --no-cache \
     pixman \
     pangomm \
     libjpeg-turbo \
-    freetype
+    freetype \
+    netcat-openbsd
 
 # Create app directory
 WORKDIR /app
@@ -96,7 +97,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node dist/health-check.js
+    CMD node dist/health-check.js || exit 1
 
 # Start the application
 ENTRYPOINT ["./entrypoint.sh"]
