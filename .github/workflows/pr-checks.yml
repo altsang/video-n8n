@@ -1,0 +1,408 @@
+name: PR Quality Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+env:
+  NODE_VERSION: '18'
+
+# Cancel in-progress workflows when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # PR Information and Validation
+  pr-info:
+    name: PR Information
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: PR Information
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const issue = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number
+            });
+            
+            console.log(`PR #${pr.number}: ${pr.title}`);
+            console.log(`Author: ${pr.user.login}`);
+            console.log(`Base: ${pr.base.ref} <- Head: ${pr.head.ref}`);
+            console.log(`Files changed: ${pr.changed_files}`);
+            console.log(`Additions: +${pr.additions}, Deletions: -${pr.deletions}`);
+            
+            // Check if PR follows epic branch naming
+            const branchName = pr.head.ref;
+            const isEpicBranch = branchName.startsWith('epic-');
+            
+            if (!isEpicBranch && branchName !== 'develop') {
+              core.setFailed(`Branch name should start with 'epic-' or be 'develop'. Got: ${branchName}`);
+            }
+
+  # Code Quality Checks
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for better analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript compilation
+        run: npx tsc --noEmit --incremental false
+
+      - name: ESLint check
+        run: |
+          npm run lint -- --format=json --output-file=eslint-results.json || true
+          npm run lint
+
+      - name: Prettier check
+        run: npm run format:check
+
+      - name: Check for TODO/FIXME comments
+        run: |
+          echo "Checking for TODO/FIXME comments..."
+          if grep -r "TODO\|FIXME" src/ --include="*.ts" --include="*.js"; then
+            echo "⚠️ Found TODO/FIXME comments. Please address them or create issues."
+          else
+            echo "✅ No TODO/FIXME comments found."
+          fi
+
+      - name: Check for console.log statements
+        run: |
+          echo "Checking for console.log statements..."
+          if grep -r "console\.log" src/ --include="*.ts" --include="*.js"; then
+            echo "⚠️ Found console.log statements. Use logger instead."
+            exit 1
+          else
+            echo "✅ No console.log statements found."
+          fi
+
+  # Security Checks
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level moderate --json > audit-results.json || true
+          npm audit --audit-level moderate
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Checking for potential hardcoded secrets..."
+          if grep -r -i "api[_-]key\|password\|secret\|token" src/ --include="*.ts" --include="*.js" | grep -v "API_KEY" | grep -v "config\." | grep -v "process\.env" | grep -v "envVars\." | grep -v "as string" | grep -v "\.password:" | grep -v "\.secret:" | grep -v "\.token:" | grep -v "Joi\.string" | grep -v "_PASSWORD:" | grep -v "_SECRET:" | grep -v "_TOKEN:"; then
+            echo "⚠️ Potential hardcoded secrets found. Please review."
+            exit 1
+          else
+            echo "✅ No hardcoded secrets detected."
+          fi
+
+      - name: Check environment variable usage
+        run: |
+          echo "Checking environment variable usage..."
+          grep -r "process\.env" src/ --include="*.ts" --include="*.js" | grep -v "config/" || echo "No direct process.env usage found (good)"
+
+  # Testing
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create test environment file
+        run: |
+          cat > .env.test << EOF
+          NODE_ENV=test
+          DATABASE_URL=postgresql://test_user:test_password@localhost:5432/test_db
+          REDIS_URL=redis://localhost:6379
+          JWT_SECRET=test_jwt_secret_minimum_32_characters_long
+          N8N_ENCRYPTION_KEY=test_encryption_key_minimum_32_chars
+          N8N_USER_MANAGEMENT_JWT_SECRET=test_jwt_secret_minimum_32_characters
+          EOF
+
+      - name: Run unit tests
+        run: npm run test:unit
+        env:
+          NODE_ENV: test
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
+
+      - name: Generate coverage report
+        run: npm test -- --coverage --watchAll=false --passWithNoTests
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: pr-tests
+          name: pr-coverage
+
+      - name: Comment coverage on PR
+        uses: actions/github-script@v6
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+            
+            try {
+              const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+              const total = coverage.total;
+              
+              const comment = `## 📊 Test Coverage Report
+              
+              | Metric | Percentage | Status |
+              |--------|------------|--------|
+              | Lines | ${total.lines.pct}% | ${total.lines.pct >= 70 ? '✅' : '❌'} |
+              | Functions | ${total.functions.pct}% | ${total.functions.pct >= 70 ? '✅' : '❌'} |
+              | Branches | ${total.branches.pct}% | ${total.branches.pct >= 70 ? '✅' : '❌'} |
+              | Statements | ${total.statements.pct}% | ${total.statements.pct >= 70 ? '✅' : '❌'} |
+              
+              ${total.lines.pct >= 70 ? '✅ Coverage meets requirements' : '❌ Coverage below 70% threshold'}
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (error) {
+              console.log('Coverage report not available:', error.message);
+            }
+
+  # Build Verification
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create CI environment file
+        run: cp .env.ci .env
+
+      - name: Build application
+        run: npm run build
+
+      - name: Check build output
+        run: |
+          echo "Checking build output..."
+          ls -la dist/
+          # Test that the built application can at least load without crashing
+          timeout 5s node dist/index.js || echo "Build check completed (expected timeout)"
+
+      - name: Docker build test
+        run: |
+          echo "Testing Docker build..."
+          docker build -t video-n8n:pr-test .
+
+      - name: Docker compose validation
+        run: |
+          echo "Validating Docker Compose configuration..."
+          cp .env.ci .env
+          docker compose config > /dev/null
+          echo "✅ Docker Compose configuration is valid"
+
+  # Dependency Check
+  dependencies:
+    name: Dependency Analysis
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Check for dependency changes
+        run: |
+          git diff origin/main package.json package-lock.json || echo "No dependency changes"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for unused dependencies
+        run: |
+          npx depcheck --ignores="@types/*,eslint-*,prettier" || echo "Dependency check completed"
+
+      - name: Bundle size analysis
+        run: |
+          npm run build
+          echo "Build size analysis:"
+          du -sh dist/
+          find dist/ -name "*.js" -exec wc -c {} + | sort -n
+
+  # Epic Integration Check
+  epic-integration:
+    name: Epic Integration Check
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false && startsWith(github.head_ref, 'epic-')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Epic branch validation
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          echo "Validating epic branch: $BRANCH_NAME"
+          
+          # Extract epic number
+          EPIC_NUM=$(echo $BRANCH_NAME | sed 's/epic-\([0-9]\+\).*/\1/')
+          echo "Epic number: $EPIC_NUM"
+          
+          # Validate epic number is between 1-7
+          if [ "$EPIC_NUM" -lt 1 ] || [ "$EPIC_NUM" -gt 7 ]; then
+            echo "❌ Invalid epic number. Must be 1-7."
+            exit 1
+          fi
+          
+          echo "✅ Valid epic branch"
+
+      - name: Check for integration conflicts
+        run: |
+          echo "Checking for potential integration conflicts..."
+          
+          # Check if shared files are modified
+          git diff --name-only origin/main | grep -E "(src/types/|src/utils/|src/config/)" || echo "No shared files modified"
+
+  # Final Status Check
+  status-check:
+    name: All Checks Status
+    runs-on: ubuntu-latest
+    needs: [pr-info, code-quality, security, test, build, dependencies]
+    if: always() && github.event.pull_request.draft == false
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    
+    steps:
+      - name: Check all job status
+        run: |
+          echo "Job Results:"
+          echo "PR Info: ${{ needs.pr-info.result }}"
+          echo "Code Quality: ${{ needs.code-quality.result }}"
+          echo "Security: ${{ needs.security.result }}"
+          echo "Tests: ${{ needs.test.result }}"
+          echo "Build: ${{ needs.build.result }}"
+          echo "Dependencies: ${{ needs.dependencies.result }}"
+          
+          # Check if any required job failed
+          if [[ "${{ needs.pr-info.result }}" == "failure" || 
+                "${{ needs.code-quality.result }}" == "failure" || 
+                "${{ needs.security.result }}" == "failure" || 
+                "${{ needs.test.result }}" == "failure" || 
+                "${{ needs.build.result }}" == "failure" ]]; then
+            echo "❌ One or more required checks failed"
+            exit 1
+          else
+            echo "✅ All required checks passed"
+          fi
+
+      - name: Success notification
+        if: success()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🎉 All PR checks passed! This PR is ready for review.'
+            });
