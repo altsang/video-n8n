@@ -35,19 +35,17 @@ interface HealthStatus {
 async function checkService(
   name: string,
   checkFunction: () => Promise<boolean>
-): Promise<{ status: 'up' | 'down'; responseTime?: number; error?: string }> {
+): Promise<{ status: 'up' | 'down' | 'degraded'; responseTime?: number; error?: string }> {
   const startTime = Date.now();
-  
+
   try {
     const isHealthy = await Promise.race([
       checkFunction(),
-      new Promise<boolean>((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 5000)
-      ),
+      new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000)),
     ]);
-    
+
     const responseTime = Date.now() - startTime;
-    
+
     return {
       status: isHealthy ? 'up' : 'down',
       responseTime,
@@ -63,35 +61,35 @@ async function checkService(
 }
 
 // Database connectivity check
-async function checkDatabase(): Promise<boolean> {
+function checkDatabase(): Promise<boolean> {
   try {
     // Placeholder for database connection check
     // Will be implemented when database client is available
-    return true;
+    return Promise.resolve(true);
   } catch {
-    return false;
+    return Promise.resolve(false);
   }
 }
 
 // Redis connectivity check
-async function checkRedis(): Promise<boolean> {
+function checkRedis(): Promise<boolean> {
   try {
     // Placeholder for Redis connection check
     // Will be implemented when Redis client is available
-    return true;
+    return Promise.resolve(true);
   } catch {
-    return false;
+    return Promise.resolve(false);
   }
 }
 
 // n8n service check
-async function checkN8n(): Promise<boolean> {
+function checkN8n(): Promise<boolean> {
   try {
     // Placeholder for n8n health check
     // Will check n8n API endpoint when available
-    return true;
+    return Promise.resolve(true);
   } catch {
-    return false;
+    return Promise.resolve(false);
   }
 }
 
@@ -99,7 +97,7 @@ async function checkN8n(): Promise<boolean> {
 async function checkFileSystem(): Promise<boolean> {
   try {
     const fs = await import('fs/promises');
-    
+
     // Check if required directories exist and are writable
     const requiredPaths = [
       config.storage.assetsPath,
@@ -107,7 +105,7 @@ async function checkFileSystem(): Promise<boolean> {
       config.storage.mediaPath,
       config.storage.premierePath,
     ];
-    
+
     for (const path of requiredPaths) {
       try {
         await fs.access(path, fs.constants.W_OK);
@@ -116,7 +114,7 @@ async function checkFileSystem(): Promise<boolean> {
         await fs.mkdir(path, { recursive: true });
       }
     }
-    
+
     return true;
   } catch {
     return false;
@@ -124,10 +122,14 @@ async function checkFileSystem(): Promise<boolean> {
 }
 
 // Get system metrics
-function getSystemMetrics() {
+function getSystemMetrics(): {
+  uptime: number;
+  memory: { used: number; total: number; percentage: number };
+  cpu: { usage: string };
+} {
   const memoryUsage = process.memoryUsage();
   const uptime = process.uptime();
-  
+
   return {
     uptime,
     memory: {
@@ -144,7 +146,7 @@ function getSystemMetrics() {
 // Main health check function
 export async function performHealthCheck(): Promise<HealthStatus> {
   const startTime = Date.now();
-  
+
   try {
     // Check all services in parallel
     const serviceChecks = await Promise.all([
@@ -153,18 +155,20 @@ export async function performHealthCheck(): Promise<HealthStatus> {
       checkService('n8n', checkN8n),
       checkService('filesystem', checkFileSystem),
     ]);
-    
+
     const services = {
       database: serviceChecks[0],
       redis: serviceChecks[1],
       n8n: serviceChecks[2],
       filesystem: serviceChecks[3],
     };
-    
+
     // Determine overall health status
     const downServices = Object.values(services).filter(service => service.status === 'down');
-    const degradedServices = Object.values(services).filter(service => service.status === 'degraded');
-    
+    const degradedServices = Object.values(services).filter(
+      service => service.status === 'degraded'
+    );
+
     let overallStatus: 'healthy' | 'unhealthy' | 'degraded';
     if (downServices.length > 0) {
       overallStatus = 'unhealthy';
@@ -173,7 +177,7 @@ export async function performHealthCheck(): Promise<HealthStatus> {
     } else {
       overallStatus = 'healthy';
     }
-    
+
     const healthStatus: HealthStatus = {
       status: overallStatus,
       timestamp: new Date().toISOString(),
@@ -182,7 +186,7 @@ export async function performHealthCheck(): Promise<HealthStatus> {
       services,
       system: getSystemMetrics(),
     };
-    
+
     const totalTime = Date.now() - startTime;
     logger.info('Health check completed', {
       status: overallStatus,
@@ -190,11 +194,11 @@ export async function performHealthCheck(): Promise<HealthStatus> {
       servicesDown: downServices.length,
       servicesDegraded: degradedServices.length,
     });
-    
+
     return healthStatus;
   } catch (error) {
     logger.error('Health check failed', { error });
-    
+
     return {
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
@@ -210,11 +214,11 @@ export async function performHealthCheck(): Promise<HealthStatus> {
 export async function healthCheck(req: Request, res: Response): Promise<void> {
   try {
     const healthStatus = await performHealthCheck();
-    
+
     // Set appropriate HTTP status code
-    const statusCode = healthStatus.status === 'healthy' ? 200 : 
-                      healthStatus.status === 'degraded' ? 200 : 503;
-    
+    const statusCode =
+      healthStatus.status === 'healthy' ? 200 : healthStatus.status === 'degraded' ? 200 : 503;
+
     res.status(statusCode).json(healthStatus);
   } catch (error) {
     logger.error('Health check endpoint error', { error });

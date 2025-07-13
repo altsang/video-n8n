@@ -153,10 +153,7 @@ export const logSecurityEvent = (
 };
 
 // Error logging with context
-export const logError = (
-  error: Error,
-  context?: Record<string, unknown>
-): void => {
+export const logError = (error: Error, context?: Record<string, unknown>): void => {
   logger.error('Application error', {
     message: error.message,
     stack: error.stack,
@@ -172,7 +169,7 @@ export const logPerformance = (
   metadata?: Record<string, unknown>
 ): void => {
   const level = duration > 5000 ? 'warn' : 'info'; // Warn if operation takes more than 5 seconds
-  
+
   logger[level]('Performance metric', {
     operation,
     duration,

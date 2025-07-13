@@ -39,8 +39,7 @@
   },
   "include": [
     "src/**/*",
-    "mcp-servers/**/*",
-    "tests/**/*"
+    "mcp-servers/**/*"
   ],
   "exclude": [
     "node_modules",

@@ -58,7 +58,7 @@ export class RateLimitError extends AppError {
 
 export class ExternalServiceError extends AppError {
   public readonly service: string;
-  public readonly originalError?: Error;
+  public readonly originalError: Error | undefined;
 
   constructor(service: string, message: string, originalError?: Error) {
     super(`${service} error: ${message}`, 502);
@@ -101,11 +101,7 @@ function isOperationalError(error: Error): boolean {
 }
 
 // Helper function to create error response
-function createErrorResponse(
-  error: Error,
-  statusCode: number,
-  requestId?: string
-): ErrorResponse {
+function createErrorResponse(error: Error, statusCode: number, requestId?: string): ErrorResponse {
   const response: ErrorResponse = {
     error: {
       message: error.message,
@@ -135,12 +131,7 @@ function createErrorResponse(
 }
 
 // Main error handling middleware
-export function errorHandler(
-  error: Error,
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
+export function errorHandler(error: Error, req: Request, res: Response, next: NextFunction): void {
   // If response already sent, delegate to Express default handler
   if (res.headersSent) {
     return next(error);
@@ -189,11 +180,7 @@ export function asyncHandler<T extends Request, U extends Response>(
 // 404 handler for unmatched routes
 export function notFoundHandler(req: Request, res: Response): void {
   const error = new NotFoundError(`Route ${req.originalUrl}`);
-  const errorResponse = createErrorResponse(
-    error,
-    404,
-    req.headers['x-request-id'] as string
-  );
+  const errorResponse = createErrorResponse(error, 404, req.headers['x-request-id'] as string);
   res.status(404).json(errorResponse);
 }
 
@@ -204,7 +191,7 @@ export function setupGlobalErrorHandlers(): void {
       message: error.message,
       stack: error.stack,
     });
-    
+
     // Close server gracefully
     process.exit(1);
   });
@@ -215,7 +202,7 @@ export function setupGlobalErrorHandlers(): void {
       stack: reason instanceof Error ? reason.stack : undefined,
       promise: String(promise),
     });
-    
+
     // Close server gracefully
     process.exit(1);
   });
@@ -225,16 +212,13 @@ export function setupGlobalErrorHandlers(): void {
 export function handleExternalApiError(
   service: string,
   response: { status?: number; statusText?: string },
-  data?: unknown
+  _data?: unknown
 ): never {
   const message = `${service} API error: ${response.status} ${response.statusText}`;
   throw new ExternalServiceError(service, message);
 }
 
-export function validateRequired<T>(
-  value: T | undefined | null,
-  fieldName: string
-): T {
+export function validateRequired<T>(value: T | undefined | null, fieldName: string): T {
   if (value === undefined || value === null) {
     throw new ValidationError(`${fieldName} is required`);
   }
@@ -248,11 +232,7 @@ export function validateApiKey(apiKey: string | undefined, service: string): str
   return apiKey;
 }
 
-export function checkCostLimit(
-  service: string,
-  cost: number,
-  limit: number
-): void {
+export function checkCostLimit(service: string, cost: number, limit: number): void {
   if (cost > limit) {
     throw new CostLimitError(service, cost, limit);
   }

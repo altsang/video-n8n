@@ -20,7 +20,7 @@ const PORT = config.port || 3000;
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: config.corsOrigin,
+  origin: config.security.corsOrigin,
   credentials: true,
 }));
 
