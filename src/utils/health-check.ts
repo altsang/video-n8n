@@ -3,8 +3,8 @@
  */
 
 import { Request, Response } from 'express';
-import { config } from '@/config/environment';
-import { logger } from '@/utils/logger';
+import { config } from '../config/environment';
+import { logger } from './logger';
 
 interface HealthStatus {
   status: 'healthy' | 'unhealthy' | 'degraded';

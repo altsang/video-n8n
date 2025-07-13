@@ -3,8 +3,8 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '@/utils/logger';
-import { config } from '@/config/environment';
+import { logger } from './logger';
+import { config } from '../config/environment';
 
 // Custom error classes
 export class AppError extends Error {

@@ -11,12 +11,12 @@ exports.app = void 0;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
-const environment_1 = require("@/config/environment");
-const logger_1 = require("@/utils/logger");
-const health_check_1 = require("@/utils/health-check");
-const error_handler_1 = require("@/utils/error-handler");
+const environment_1 = require("./config/environment");
+const logger_1 = require("./utils/logger");
+const health_check_1 = require("./utils/health-check");
+const error_handler_1 = require("./utils/error-handler");
 // API Routes (will be implemented in Epic 2)
-// import { apiRoutes } from '@/api/routes';
+// import { apiRoutes } from './api/routes';
 const app = (0, express_1.default)();
 exports.app = app;
 const PORT = environment_1.config.port || 3000;

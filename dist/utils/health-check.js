@@ -39,8 +39,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.performHealthCheck = performHealthCheck;
 exports.healthCheck = healthCheck;
 exports.simpleHealthCheck = simpleHealthCheck;
-const environment_1 = require("@/config/environment");
-const logger_1 = require("@/utils/logger");
+const environment_1 = require("../config/environment");
+const logger_1 = require("./logger");
 // Helper function to check service connectivity
 async function checkService(name, checkFunction) {
     const startTime = Date.now();

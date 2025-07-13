@@ -4,7 +4,7 @@
  */
 
 import winston from 'winston';
-import { config } from '@/config/environment';
+import { config } from '../config/environment';
 
 // Custom log format
 const logFormat = winston.format.combine(

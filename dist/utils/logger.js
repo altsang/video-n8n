@@ -9,7 +9,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.debug = exports.logPerformance = exports.logError = exports.logSecurityEvent = exports.logWorkflowExecution = exports.logCostTracking = exports.logApiCall = exports.createRequestLogger = exports.logger = void 0;
 const winston_1 = __importDefault(require("winston"));
-const environment_1 = require("@/config/environment");
+const environment_1 = require("../config/environment");
 // Custom log format
 const logFormat = winston_1.default.format.combine(winston_1.default.format.timestamp({
     format: 'YYYY-MM-DD HH:mm:ss',

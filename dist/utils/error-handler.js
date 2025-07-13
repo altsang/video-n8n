@@ -12,8 +12,8 @@ exports.handleExternalApiError = handleExternalApiError;
 exports.validateRequired = validateRequired;
 exports.validateApiKey = validateApiKey;
 exports.checkCostLimit = checkCostLimit;
-const logger_1 = require("@/utils/logger");
-const environment_1 = require("@/config/environment");
+const logger_1 = require("./logger");
+const environment_1 = require("../config/environment");
 // Custom error classes
 class AppError extends Error {
     statusCode;

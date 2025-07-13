@@ -6,13 +6,13 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { config } from '@/config/environment';
-import { logger } from '@/utils/logger';
-import { healthCheck } from '@/utils/health-check';
-import { errorHandler } from '@/utils/error-handler';
+import { config } from './config/environment';
+import { logger } from './utils/logger';
+import { healthCheck } from './utils/health-check';
+import { errorHandler } from './utils/error-handler';
 
 // API Routes (will be implemented in Epic 2)
-// import { apiRoutes } from '@/api/routes';
+// import { apiRoutes } from './api/routes';
 
 const app = express();
 const PORT = config.port || 3000;
