@@ -288,7 +288,7 @@ jobs:
         run: |
           echo "Validating Docker Compose configuration..."
           cp .env.ci .env
-          docker-compose config > /dev/null
+          docker compose config > /dev/null
           echo "✅ Docker Compose configuration is valid"
 
   # Dependency Check
