@@ -128,10 +128,10 @@ jobs:
       - name: Test Docker Compose
         run: |
           cp .env.example .env
-          docker-compose config
-          docker-compose up -d postgres redis
+          docker compose config
+          docker compose up -d postgres redis
           sleep 10
-          docker-compose down
+          docker compose down
 
   # Security Scanning
   security:
