@@ -138,6 +138,10 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     needs: quality
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
 
     steps:
       - name: Checkout code
@@ -155,12 +159,12 @@ jobs:
         run: npm audit --audit-level moderate
 
       - name: Run CodeQL Analysis
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
         with:
           languages: javascript
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3
 
   # Deployment (only on main branch)
   deploy:
