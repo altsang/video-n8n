@@ -12,14 +12,14 @@ async function main(): Promise<void> {
     const isHealthy = await simpleHealthCheck();
     
     if (isHealthy) {
-      console.log('✅ Application is healthy');
+      process.stdout.write('✅ Application is healthy\n');
       process.exit(0);
     } else {
-      console.log('❌ Application is unhealthy');
+      process.stdout.write('❌ Application is unhealthy\n');
       process.exit(1);
     }
   } catch (error) {
-    console.error('❌ Health check failed:', error);
+    process.stderr.write(`❌ Health check failed: ${error}\n`);
     process.exit(1);
   }
 }
