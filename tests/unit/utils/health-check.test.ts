@@ -32,6 +32,15 @@ describe('Health Check Utility', () => {
   });
 
   describe('performHealthCheck', () => {
+    let originalMemoryUsage: typeof process.memoryUsage;
+
+    beforeEach(() => {
+      originalMemoryUsage = process.memoryUsage;
+    });
+
+    afterEach(() => {
+      process.memoryUsage = originalMemoryUsage;
+    });
     it('should return healthy status when all services are up', async () => {
       const result = await performHealthCheck();
 
@@ -92,10 +101,9 @@ describe('Health Check Utility', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       // Force an error by mocking process.memoryUsage to throw
-      const originalMemoryUsage = process.memoryUsage;
       process.memoryUsage = jest.fn().mockImplementation(() => {
         throw new Error('Memory usage error');
-      });
+      }) as unknown as typeof process.memoryUsage;
 
       const result = await performHealthCheck();
 
@@ -103,8 +111,6 @@ describe('Health Check Utility', () => {
       expect(result).toBeDefined();
       expect(result.status).toBe('unhealthy');
 
-      // Restore original function
-      process.memoryUsage = originalMemoryUsage;
       consoleSpy.mockRestore();
     });
   });

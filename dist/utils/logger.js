@@ -69,7 +69,7 @@ const logApiCall = (service, endpoint, method, statusCode, duration, error) => {
         error: error?.message,
         stack: error?.stack,
     };
-    if (error || (statusCode && statusCode >= 400)) {
+    if (error ?? (statusCode != null && statusCode >= 400)) {
         exports.logger.error('API call failed', logData);
     }
     else {

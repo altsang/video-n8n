@@ -43,7 +43,7 @@ export declare function setupGlobalErrorHandlers(): void;
 export declare function handleExternalApiError(service: string, response: {
     status?: number;
     statusText?: string;
-}, _data?: unknown): never;
+}): never;
 export declare function validateRequired<T>(value: T | undefined | null, fieldName: string): T;
 export declare function validateApiKey(apiKey: string | undefined, service: string): string;
 export declare function checkCostLimit(service: string, cost: number, limit: number): void;

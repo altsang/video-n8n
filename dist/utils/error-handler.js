@@ -84,13 +84,6 @@ class CostLimitError extends AppError {
     }
 }
 exports.CostLimitError = CostLimitError;
-// Helper function to determine if error is operational
-function isOperationalError(error) {
-    if (error instanceof AppError) {
-        return error.isOperational;
-    }
-    return false;
-}
 // Helper function to create error response
 function createErrorResponse(error, statusCode, requestId) {
     const response = {
@@ -122,12 +115,9 @@ function errorHandler(error, req, res, next) {
     if (res.headersSent) {
         return next(error);
     }
-    const requestId = req.headers['x-request-id'];
+    const { 'x-request-id': requestId } = req.headers;
     // Determine status code
-    let statusCode = 500;
-    if (error instanceof AppError) {
-        statusCode = error.statusCode;
-    }
+    const { statusCode = 500 } = error instanceof AppError ? error : {};
     // Log the error
     const logData = {
         message: error.message,
@@ -146,7 +136,7 @@ function errorHandler(error, req, res, next) {
         logger_1.logger.warn('Client error', logData);
     }
     // Send error response
-    const errorResponse = createErrorResponse(error, statusCode, requestId);
+    const errorResponse = createErrorResponse(error, statusCode, Array.isArray(requestId) ? requestId[0] : requestId);
     res.status(statusCode).json(errorResponse);
 }
 // Async error wrapper for route handlers
@@ -182,8 +172,9 @@ function setupGlobalErrorHandlers() {
     });
 }
 // Utility functions for common error scenarios
-function handleExternalApiError(service, response, _data) {
-    const message = `${service} API error: ${response.status} ${response.statusText}`;
+function handleExternalApiError(service, response) {
+    const { status, statusText } = response;
+    const message = `${service} API error: ${status} ${statusText}`;
     throw new ExternalServiceError(service, message);
 }
 function validateRequired(value, fieldName) {

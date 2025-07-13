@@ -127,20 +127,35 @@ function getSystemMetrics(): {
   memory: { used: number; total: number; percentage: number };
   cpu: { usage: string };
 } {
-  const memoryUsage = process.memoryUsage();
-  const uptime = process.uptime();
+  try {
+    const memoryUsage = process.memoryUsage();
+    const uptime = process.uptime();
 
-  return {
-    uptime,
-    memory: {
-      used: memoryUsage.heapUsed,
-      total: memoryUsage.heapTotal,
-      percentage: Math.round((memoryUsage.heapUsed / memoryUsage.heapTotal) * 100),
-    },
-    cpu: {
-      usage: 'N/A', // CPU usage calculation would require additional monitoring
-    },
-  };
+    return {
+      uptime,
+      memory: {
+        used: memoryUsage.heapUsed,
+        total: memoryUsage.heapTotal,
+        percentage: Math.round((memoryUsage.heapUsed / memoryUsage.heapTotal) * 100),
+      },
+      cpu: {
+        usage: 'N/A', // CPU usage calculation would require additional monitoring
+      },
+    };
+  } catch {
+    // Return default values if metrics collection fails
+    return {
+      uptime: 0,
+      memory: {
+        used: 0,
+        total: 0,
+        percentage: 0,
+      },
+      cpu: {
+        usage: 'N/A',
+      },
+    };
+  }
 }
 
 // Main health check function

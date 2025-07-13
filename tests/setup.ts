@@ -51,7 +51,7 @@ declare global {
   }
 }
 
-global.testConfig = {
+(global as any).testConfig = {
   mockApiResponses: true,
   skipExternalCalls: true,
 };

@@ -92,7 +92,6 @@ interface ErrorResponse {
   };
 }
 
-
 // Helper function to create error response
 function createErrorResponse(error: Error, statusCode: number, requestId?: string): ErrorResponse {
   const response: ErrorResponse = {
@@ -130,13 +129,10 @@ export function errorHandler(error: Error, req: Request, res: Response, next: Ne
     return next(error);
   }
 
-  const requestId = req.headers['x-request-id'] as string;
+  const { 'x-request-id': requestId } = req.headers;
 
   // Determine status code
-  let statusCode = 500;
-  if (error instanceof AppError) {
-    statusCode = error.statusCode;
-  }
+  const { statusCode = 500 } = error instanceof AppError ? error : {};
 
   // Log the error
   const logData = {
@@ -157,7 +153,7 @@ export function errorHandler(error: Error, req: Request, res: Response, next: Ne
   }
 
   // Send error response
-  const errorResponse = createErrorResponse(error, statusCode, requestId);
+  const errorResponse = createErrorResponse(error, statusCode, Array.isArray(requestId) ? requestId[0] : requestId);
   res.status(statusCode).json(errorResponse);
 }
 
@@ -204,8 +200,7 @@ export function setupGlobalErrorHandlers(): void {
 // Utility functions for common error scenarios
 export function handleExternalApiError(
   service: string,
-  response: { status?: number; statusText?: string },
-  _data?: unknown
+  response: { status?: number; statusText?: string }
 ): never {
   const { status, statusText } = response;
   const message = `${service} API error: ${status} ${statusText}`;
