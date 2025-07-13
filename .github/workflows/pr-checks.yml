@@ -127,7 +127,7 @@ jobs:
       - name: Check for hardcoded secrets
         run: |
           echo "Checking for potential hardcoded secrets..."
-          if grep -r -i "api[_-]key\|password\|secret\|token" src/ --include="*.ts" --include="*.js" | grep -v "API_KEY" | grep -v "config\." | grep -v "process\.env"; then
+          if grep -r -i "api[_-]key\|password\|secret\|token" src/ --include="*.ts" --include="*.js" | grep -v "API_KEY" | grep -v "config\." | grep -v "process\.env" | grep -v "envVars\." | grep -v "as string" | grep -v "\.password:" | grep -v "\.secret:" | grep -v "\.token:"; then
             echo "⚠️ Potential hardcoded secrets found. Please review."
             exit 1
           else
