@@ -92,13 +92,6 @@ interface ErrorResponse {
   };
 }
 
-// Helper function to determine if error is operational
-function isOperationalError(error: Error): boolean {
-  if (error instanceof AppError) {
-    return error.isOperational;
-  }
-  return false;
-}
 
 // Helper function to create error response
 function createErrorResponse(error: Error, statusCode: number, requestId?: string): ErrorResponse {
@@ -214,7 +207,8 @@ export function handleExternalApiError(
   response: { status?: number; statusText?: string },
   _data?: unknown
 ): never {
-  const message = `${service} API error: ${response.status} ${response.statusText}`;
+  const { status, statusText } = response;
+  const message = `${service} API error: ${status} ${statusText}`;
   throw new ExternalServiceError(service, message);
 }
 
