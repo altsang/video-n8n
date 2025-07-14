@@ -9,14 +9,30 @@ This project aims to build an n8n-based workflow system to automate an AI video 
 
 ## Current Workflow (Manual Process)
 
-1. **Write Story** - Written in screenplay format using Final Draft to get a sense of timing
-2. **Midjourney / Leonardo** - Create still images for cast and locations (hundreds of images, curated)
-3. **Eleven Labs.ai** - Create all different voices, audition ~100 voices for curation
-4. **Soundstripe / Suno.ai** - Curate or create music pieces (Suno.ai is faster)
-5. **Adobe Premiere** - Create rough cut with ElevenLabs voices, still images, and music for timing
-6. **Kling / Runway / Midjourney** - Convert still images into video footage
-7. **Runway Act One** - Perform and convert performance to video footage (most time-consuming)
-8. **Adobe Premiere** - Replace stills with video, polish, add sound effects, color correct
+Based on the workflow diagram, the process follows a script-driven, parallel pipeline approach:
+
+### Central Input
+1. **Script** - Written in screenplay format using Final Draft (single source of truth for all content)
+
+### Parallel Content Generation
+**Visual Pipeline:**
+- **Images**: Generate characters and locations using Midjourney/Leonardo AI
+- **Curation**: Manual selection of characters & locations from generated assets
+- **Animation**: Convert still images to video using Kling AI/Runway/Midjourney
+
+**Audio Pipeline:**
+- **Sound**: Create music using Suno AI, source sound effects from Sound Stripe
+- **Voices**: Generate dialogue using Eleven Labs based on script
+- **Curation**: Manual selection of all audio elements (music, SFX, voices)
+
+### Final Assembly
+- **Edit - Premiere**: Import all curated assets and assemble final video with timing, polish, color correction
+
+### Key Workflow Characteristics
+- **Script-Driven**: All content generation is driven by parsing the screenplay
+- **Parallel Processing**: Visual and audio pipelines run concurrently
+- **Human Curation Points**: Manual approval/selection of generated assets
+- **Asset Convergence**: All elements feed into Premiere for final assembly
 
 ## API Research Results
 
@@ -39,9 +55,10 @@ This project aims to build an n8n-based workflow system to automate an AI video 
 ## Architecture Strategy
 
 ### n8n Workflow System
-- **Phase 1**: Content Generation Workflows (Story processing, Image/Voice/Music generation)
-- **Phase 2**: Video Production Workflows (Rough cut assembly, Video generation, Performance capture)
-- **Phase 3**: MCP Server Development (Custom integrations for non-API services)
+- **Phase 1**: Script-Driven Foundation (Central script parsing, metadata extraction, project orchestration)
+- **Phase 2**: Parallel Content Pipelines (Visual: images→animation, Audio: voices→music→SFX)
+- **Phase 3**: Asset Management & Curation (Human approval workflows, organized file systems)
+- **Phase 4**: Final Assembly Integration (Premiere Pro automation, timeline assembly)
 
 ### Integration Approach
 - Direct API integration for supported services
@@ -75,34 +92,38 @@ This project aims to build an n8n-based workflow system to automate an AI video 
 - [ ] Set up development environment and CI/CD pipeline
 - [ ] Install and configure required n8n community nodes
 
-### Phase 2: Core API Integrations
+### Phase 2: Script-Driven Foundation
+- [ ] Implement Final Draft file parser (.fdx format) for screenplay processing
+- [ ] Create script analysis system (character extraction, location identification, dialogue parsing)
+- [ ] Build project metadata database for tracking assets through pipelines
+- [ ] Develop script-driven content generation triggers for both visual and audio pipelines
+
+### Phase 3: Parallel Content Pipelines
 - [ ] Implement ElevenLabs API client for voice generation and management
-- [ ] Develop Leonardo AI API integration for image generation
+- [ ] Develop Leonardo AI API integration for character/location image generation
 - [ ] Create Soundstripe Enterprise API client for music library access
-- [ ] Integrate Runway ML API for video generation (Gen-3 Alpha Turbo)
+- [ ] Research and implement Suno AI third-party API integration for music creation
+- [ ] Develop Kling AI/Runway ML API clients for image-to-video conversion
+- [ ] Build parallel workflow orchestration (visual and audio pipelines)
 
-### Phase 3: Third-Party API Integration
-- [ ] Research and implement Suno AI third-party API integration
-- [ ] Develop Kling AI API client with cost monitoring
-- [ ] Implement ToS-compliant Midjourney automation (if possible)
-- [ ] Add error handling and fallback mechanisms for unofficial APIs
+### Phase 4: Asset Management & Curation
+- [ ] Create asset organization system (project → pipeline → type → status)
+- [ ] Build web-based curation interface for human approval workflows
+- [ ] Implement progress tracking dashboard across both pipelines
+- [ ] Develop notification system for curation queue management
+- [ ] Add file monitoring and automated asset organization
 
-### Phase 4: File-Based Integration
-- [ ] Create Final Draft file parser (.fdx format) for screenplay processing
+### Phase 5: Final Assembly Integration
 - [ ] Develop Adobe Premiere Pro ExtendScript automation scripts
-- [ ] Implement file monitoring and organization systems
-- [ ] Create data extraction utilities for timing and dialogue
-
-### Phase 5: n8n Workflow Development
-- [ ] Build content generation workflow (story → assets)
-- [ ] Create video production workflow (assets → rough cut)
-- [ ] Implement batch processing and queue management
-- [ ] Add progress tracking and notification systems
+- [ ] Create curated asset import system for Premiere Pro
+- [ ] Build automated timeline assembly based on script timing
+- [ ] Implement final production workflow (polish, color correction, sound mixing)
 
 ### Phase 6: MCP Server Development
-- [ ] Develop custom MCP server for Final Draft integration
-- [ ] Create MCP server for Premiere Pro automation assistance
-- [ ] Build workflow orchestration MCP server for Claude Code
+- [ ] Develop Script Processing MCP server for Final Draft integration
+- [ ] Create Asset Management MCP server for curation workflow assistance
+- [ ] Build Premiere Pro MCP server for timeline automation assistance
+- [ ] Develop Workflow Orchestration MCP server for pipeline coordination
 - [ ] Test MCP integration with Claude Code
 
 ### Phase 7: Quality Assurance
@@ -174,22 +195,26 @@ The system uses a three-tiered integration approach:
 3. **File-Based Automation**: Services without APIs (Final Draft, Adobe Premiere Pro)
 
 #### n8n Workflow Architecture
-- **Content Generation Workflows**: Orchestrate story processing, image/voice/music generation
-- **Video Production Workflows**: Handle rough cut assembly, video generation, and final production
-- **Batch Processing System**: Queue management for concurrent project processing
+- **Script Processing Workflow**: Parse Final Draft files, extract characters/locations/dialogue/scenes
+- **Visual Pipeline Workflow**: Character/location generation → curation → animation
+- **Audio Pipeline Workflow**: Voice generation → music/SFX selection → curation
+- **Asset Management System**: File organization, approval workflows, progress tracking
+- **Final Assembly Workflow**: Premiere Pro integration, timeline automation, final production
 - **Error Handling**: Circuit breakers, retry logic, and fallback mechanisms
 
 #### MCP Server Integration
 Custom MCP servers provide Claude Code with specialized tools:
-- **Final Draft Server**: Screenplay parsing, character analysis, timing estimation
-- **Premiere Pro Server**: Project analysis, ExtendScript generation, workflow optimization
-- **Workflow Orchestration Server**: n8n workflow management, performance monitoring, cost optimization
+- **Script Processing Server**: Final Draft parsing, character/location extraction, scene analysis
+- **Asset Management Server**: File organization, curation workflow management, progress tracking
+- **Premiere Pro Server**: Project analysis, ExtendScript generation, timeline automation
+- **Workflow Orchestration Server**: n8n workflow management, pipeline coordination, cost optimization
 
 ### File Processing Patterns
-- **Final Draft (.fdx)**: XML parsing for screenplay structure extraction
-- **Premiere Pro Projects**: ExtendScript/UXP automation for timeline manipulation
-- **Media Assets**: Automated organization with consistent naming conventions
-- **Batch Operations**: Queue-based processing with progress tracking
+- **Final Draft (.fdx)**: XML parsing for screenplay structure, character/location/dialogue extraction
+- **Generated Assets**: Organized by project → pipeline → asset type → curation status
+- **Premiere Pro Projects**: ExtendScript/UXP automation for importing curated assets and timeline assembly
+- **Parallel Processing**: Visual and audio pipelines run concurrently with synchronized progress tracking
+- **Curation Workflows**: Human approval points with web interface for asset selection
 
 ### API Integration Guidelines
 - All API clients implement retry logic with exponential backoff
@@ -205,6 +230,29 @@ Project planning uses GitHub Issues with the following structure:
 - **Labels**: `epic`, `user-story`, `api-integration`, `n8n-workflow`, `mcp-server`
 
 Current development follows the GitHub Issues roadmap from Epic 1 (Foundation) through Epic 7 (Quality Assurance).
+
+---
+
+## Development Workflow Preferences
+
+### Git and PR Management
+- **PR Merge Strategy**: Always use `gh pr merge --rebase --delete-branch` to maintain clean linear commit history
+- **Branch Protection**: Follow the comprehensive CI/CD pipeline with 6 parallel quality gates
+- **Commit Messages**: Keep individual commits descriptive and focused
+- **Branch Naming**: Use `epic-N-description` format for feature branches
+
+### CI/CD Pipeline Requirements
+- All 6 quality gates must pass: PR Info, Code Quality, Security, Tests, Build, Dependencies
+- Never claim checks are passing unless GitHub pipeline confirms completion
+- Address all ESLint, TypeScript, and test coverage requirements
+- Ensure Docker builds and health checks work correctly
+
+### Quality Standards
+- Code coverage thresholds: 50% statements/functions/lines, 40% branches (Epic 1)
+- No console.log statements (use logger utility instead)
+- TypeScript strict mode compilation without errors
+- Prettier formatting and ESLint compliance required
+- Security scanning with CodeQL and npm audit
 
 ## Notes
 - Maintain ToS compliance for all third-party integrations
